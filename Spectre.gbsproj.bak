@@ -7,9 +7,9 @@
         {
             "name": "Crawling",
             "backgroundId": "9812b0ab-afcd-45b7-bd40-d9f01dcb2137",
-            "width": 20,
-            "height": 18,
-            "type": "TOPDOWN",
+            "width": 32,
+            "height": 32,
+            "type": "POINTNCLICK",
             "paletteIds": [],
             "spritePaletteIds": [],
             "collisions": [],
@@ -26,7 +26,7 @@
                     "args": {
                         "actorId": "$self$"
                     },
-                    "id": "125e0dbd-fe6e-40ed-bf1c-927661c0d6eb"
+                    "id": "0ca29725-58bf-449d-b861-2dc5258d9702"
                 }
             ],
             "playerHit1Script": [],
@@ -39,11 +39,12 @@
             "id": "9812b0ab-afcd-45b7-bd40-d9f01dcb2137",
             "name": "lab_crawl",
             "symbol": "bg_lab_crawl",
-            "width": 20,
-            "height": 18,
-            "imageWidth": 160,
-            "imageHeight": 144,
-            "filename": "lab_crawl.png"
+            "width": 32,
+            "height": 32,
+            "imageWidth": 256,
+            "imageHeight": 256,
+            "filename": "lab_crawl.png",
+            "tileColors": []
         },
         {
             "id": "1e5f9d6a-bdbc-43e6-8c34-22f5bb5dea05",
@@ -968,15 +969,15 @@
         }
     ],
     "settings": {
-        "startSceneId": "",
-        "startX": 9,
-        "startY": 9,
+        "startSceneId": "28a7a9e9-912b-43f2-b213-82c06b7f0a1f",
+        "startX": 0,
+        "startY": 0,
         "startMoveSpeed": 1,
         "startAnimSpeed": 15,
         "startDirection": "down",
         "showCollisions": true,
         "showConnections": true,
-        "worldScrollX": 55,
+        "worldScrollX": 34,
         "worldScrollY": 0,
         "zoom": 183.05743852257729,
         "customColorsEnabled": false,
