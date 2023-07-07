@@ -3,9 +3,9 @@
 
 #include <gb/gb.h>
 
-#define VIEW_HEIGHT 10
-#define VIEW_TOP 2
-#define VIEW_WIDTH 20
+#define VIEW_HEIGHT 10u
+#define VIEW_TOP 2u
+#define VIEW_WIDTH 20u
 
 void pointnclick_init();
 void pointnclick_update();
@@ -13,6 +13,8 @@ void build_left() BANKED;
 void build_right() BANKED;
 void build_view() BANKED;
 void solve_view() BANKED;
+void player_move_to(uint8_t px, uint8_t py) BANKED;
 void set_bkg_chunk(UBYTE x, UBYTE y, UBYTE w, UBYTE h, UBYTE sx, UBYTE sy) NONBANKED;
+uint8_t get_bkg_tile(uint8_t x, uint8_t y) NONBANKED;
 
 #endif

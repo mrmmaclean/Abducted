@@ -3,43 +3,34 @@
 #include "data/states_defines.h"
 #include "states/pointnclick.h"
 
+#include "actor.h"
 #include "data_manager.h"
 #include "game_time.h"
 #include "input.h"
 #include "vm.h"
+#include "trigger.h"
 
 const int8_t dirx[4] = {0, 1, 0, -1};
-const int8_t diry[4] = {-1, 0, 1, 0};
+const int8_t diry[4] = {1, 0, -1, 0};
 
 static uint8_t _saved;
-static uint8_t view_dirty = TRUE;
+static uint8_t view_dirty;
 
-static uint8_t px;
-static uint8_t py;
-static int8_t dir;
-static int8_t strafe;
+static uint16_t px;
+static uint16_t py;
+static uint16_t last_px;
+static uint16_t last_py;
+
+static uint8_t dir;
+static uint8_t strafe;
 
 static uint8_t viewport[5][3];
+
 static uint8_t vx;
 static uint8_t vy;
+static uint8_t tile;
 
-static uint8_t dungeon[16][16] = {
-    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-    {1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1},
-    {1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1},
-    {1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1},
-    {1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
+static uint8_t open;
 
 void build_left() BANKED
 {
@@ -157,7 +148,7 @@ void build_right() BANKED
         if (viewport[3][1])
         {
             set_bkg_chunk(15u, VIEW_TOP, 5u, VIEW_HEIGHT, 20u, 0);
-            if (!viewport[1][2])
+            if (!viewport[2][1])
             {
                 set_bkg_chunk(12u, VIEW_TOP, 3u, VIEW_HEIGHT, 20u, 10u);
             }
@@ -226,29 +217,49 @@ void build_view() BANKED
         {
             if (viewport[2][0])
             {
-                set_bkg_chunk(8u, VIEW_TOP, 4u, VIEW_WIDTH, 4u, 2u);
+                set_bkg_chunk(8u, VIEW_TOP, 4u, VIEW_HEIGHT, 4u, 2u);
             }
             else
             {
-                set_bkg_chunk(8u, VIEW_TOP, 4u, VIEW_WIDTH, 8u, 2u);
+                set_bkg_chunk(8u, VIEW_TOP, 4u, VIEW_HEIGHT, 8u, 2u);
             }
         }
     }
     view_dirty = FALSE;
 }
 
+void set_bkg_chunk(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t sx, uint8_t sy) NONBANKED
+{
+    // x, y, w, h, sx, sy;
+    _saved = _current_bank;
+    SWITCH_ROM(image_bank);
+
+    set_bkg_submap(x, y, w, h, image_ptr + (sx - x) + (image_tile_width * (sy - y)), image_tile_width);
+    SWITCH_ROM(_saved);
+}
+
+uint8_t get_bkg_tile(uint8_t x, uint8_t y) NONBANKED
+{
+    tile = ReadBankedUBYTE(image_ptr + (y * image_tile_width) + x, image_bank);
+    return tile;
+}
+
 void solve_view() BANKED
 {
-    switch (dir)
+    view_dirty = TRUE;
+    px = PLAYER.pos.x >> 7;
+    py = PLAYER.pos.y >> 7;
+
+    switch (PLAYER.dir)
     {
     case 0:
         for (uint8_t i = 0; i < 5; i++)
         {
             for (uint8_t j = 0; j < 3; j++)
             {
-                vx = (px - 2 + i) % 16;
-                vy = (py - 3 + j) % 16;
-                viewport[i][j] = dungeon[vx][vy];
+                vx = (px + 2 - i);
+                vy = (py + 3 - j);
+                viewport[i][j] = get_bkg_tile(vx, vy) == open ? 0 : 1;
             }
         }
         break;
@@ -257,9 +268,9 @@ void solve_view() BANKED
         {
             for (uint8_t j = 0; j < 3; j++)
             {
-                vx = (px + 1 + j) % 16;
-                vy = (py - 2 + i) % 16;
-                viewport[i][2 - j] = dungeon[vx][vy];
+                vx = (px + 1 + j);
+                vy = (py - 2 + i);
+                viewport[i][2 - j] = get_bkg_tile(vx, vy) == open ? 0 : 1;
             }
         }
         break;
@@ -268,9 +279,9 @@ void solve_view() BANKED
         {
             for (uint8_t j = 0; j < 3; j++)
             {
-                vx = (px + 2 - i) % 16;
-                vy = (py + 3 - j) % 16;
-                viewport[i][j] = dungeon[vx][vy];
+                vx = (px - 2 + i);
+                vy = (py - 3 + j);
+                viewport[i][j] = get_bkg_tile(vx, vy) == open ? 0 : 1;
             }
         }
         break;
@@ -279,49 +290,61 @@ void solve_view() BANKED
         {
             for (uint8_t j = 0; j < 3; j++)
             {
-                vx = (px - 1 - j) % 16;
-                vy = (py + 2 - i) % 16;
-                viewport[i][2 - j] = dungeon[vx][vy];
+                vx = (px - 1 - j);
+                vy = (py + 2 - i);
+                viewport[i][2 - j] = get_bkg_tile(vx, vy) == open ? 0 : 1;
             }
         }
         break;
     default:
         break;
     }
-    view_dirty = TRUE;
 }
 
-void set_bkg_chunk(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t sx, uint8_t sy) NONBANKED
+void player_move_to(uint8_t px, uint8_t py) BANKED
 {
-    _saved = _current_bank;
-    SWITCH_ROM(image_bank);
-
-    set_bkg_submap(x, y, w, h, image_ptr + (sx - x) + (image_tile_width * (sy - y)), image_tile_width);
-    SWITCH_ROM(_saved);
+    last_px = PLAYER.pos.x;
+    last_py = PLAYER.pos.y;
+    PLAYER.pos.x = px << 7;
+    PLAYER.pos.y = py << 7;
+    view_dirty = TRUE;
 }
 
 void pointnclick_init() BANKED
 {
-    px = 2u;
-    py = 3u;
-    dir = 0;
-    solve_view();
+    // Render view in first update
+    view_dirty = TRUE;
+    // Set "open" tile to top left tile in map area
+    open = get_bkg_tile(0, 32);
 }
 
 void pointnclick_update() BANKED
 {
+    actor_t *hit_actor;
+
+    // If stepped on trigger, run trigger script
+    if (trigger_activate_at(PLAYER.pos.x >> 7, PLAYER.pos.y >> 7, FALSE))
+    {
+        return;
+    }
+
+    // Input
     if (INPUT_UP_PRESSED && !view_dirty)
     {
-        px += dirx[dir];
-        py += diry[dir];
-        if (dungeon[px][py])
+        px = (PLAYER.pos.x >> 7) + dirx[PLAYER.dir];
+        py = (PLAYER.pos.y >> 7) + diry[PLAYER.dir];
+        if (get_bkg_tile(px, py) == open)
         {
-            px -= dirx[dir];
-            py -= diry[dir];
+            player_move_to(px, py);
         }
-        else
+    }
+    else if (INPUT_DOWN_PRESSED && !view_dirty)
+    {
+        px = (PLAYER.pos.x >> 7) - dirx[PLAYER.dir];
+        py = (PLAYER.pos.y >> 7) - diry[PLAYER.dir];
+        if (get_bkg_tile(px, py) == open)
         {
-            solve_view();
+            player_move_to(px, py);
         }
     }
     else if (INPUT_RIGHT_PRESSED && !view_dirty)
@@ -329,23 +352,18 @@ void pointnclick_update() BANKED
         if (INPUT_B)
         {
             // Strafe
-            strafe = (dir + 1) % 4;
-            px += dirx[strafe];
-            py += diry[strafe];
-            if (dungeon[px][py])
+            strafe = (PLAYER.dir - 1) & 3;
+            px = (PLAYER.pos.x >> 7) + dirx[strafe];
+            py = (PLAYER.pos.y >> 7) + diry[strafe];
+            if (get_bkg_tile(px, py) == open)
             {
-                px -= dirx[strafe];
-                py -= diry[strafe];
-            }
-            else
-            {
-                solve_view();
+                player_move_to(px, py);
             }
         }
         else
         {
-            dir = (dir + 1) % 4;
-            solve_view();
+            PLAYER.dir = (PLAYER.dir - 1) & 3;
+            view_dirty = TRUE;
         }
     }
     else if (INPUT_LEFT_PRESSED && !view_dirty)
@@ -353,42 +371,52 @@ void pointnclick_update() BANKED
         if (INPUT_B)
         {
             // Strafe
-            strafe = (dir - 1) % 4;
-            px += dirx[strafe];
-            py += diry[strafe];
-            if (dungeon[px][py])
+            strafe = (PLAYER.dir + 1) & 3;
+            px = (PLAYER.pos.x >> 7) + dirx[strafe];
+            py = (PLAYER.pos.y >> 7) + diry[strafe];
+            if (get_bkg_tile(px, py) == open)
             {
-                px -= dirx[strafe];
-                py -= diry[strafe];
-            }
-            else
-            {
-                solve_view();
+                player_move_to(px, py);
             }
         }
         else
         {
-            dir = (dir - 1) % 4;
-            solve_view();
-        }
-    }
-    else if (INPUT_DOWN_PRESSED && !view_dirty)
-    {
-        px -= dirx[dir];
-        py -= diry[dir];
-        if (dungeon[px][py])
-        {
-            px += dirx[dir];
-            py += diry[dir];
-        }
-        else
-        {
-            solve_view();
+            PLAYER.dir = (PLAYER.dir + 1) & 3;
+            view_dirty = TRUE;
         }
     }
 
+    // Check for actor collision
+    hit_actor = actor_overlapping_player(FALSE);
+    if (hit_actor != NULL)
+    {
+        player_move_to(last_px >> 7, last_py >> 7);
+        // Set the player to face the actor (in case of strafe)
+        if (last_px > PLAYER.pos.x)
+        {
+            actor_set_dir(&PLAYER, DIR_RIGHT, FALSE);
+        }
+        else if (last_px < PLAYER.pos.x)
+        {
+            actor_set_dir(&PLAYER, DIR_LEFT, FALSE);
+        }
+        if (last_py > PLAYER.pos.y)
+        {
+            actor_set_dir(&PLAYER, DIR_DOWN, FALSE);
+        }
+        else if (last_py < PLAYER.pos.y)
+        {
+            actor_set_dir(&PLAYER, DIR_UP, FALSE);
+        }
+
+        // actor_set_dir(&PLAYER, FLIPPED_DIR(hit_actor->dir), FALSE);
+        player_register_collision_with(hit_actor);
+    }
+
+    // Update view
     if (view_dirty)
     {
+        solve_view();
         build_view();
     }
 }
