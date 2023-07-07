@@ -388,7 +388,7 @@ void pointnclick_update() BANKED
 
     // Check for actor collision
     hit_actor = actor_overlapping_player(FALSE);
-    if (hit_actor != NULL)
+    if (hit_actor != NULL && hit_actor->collision_group)
     {
         player_move_to(last_px >> 7, last_py >> 7);
         // Set the player to face the actor (in case of strafe)
