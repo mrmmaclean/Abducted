@@ -322,9 +322,10 @@ void pointnclick_update() BANKED
 {
     actor_t *hit_actor;
 
-    // If stepped on trigger, run trigger script
-    if (trigger_activate_at(PLAYER.pos.x >> 7, PLAYER.pos.y >> 7, FALSE))
+    // Check for trigger collisions
+    if (trigger_activate_at_intersection(&PLAYER.bounds, &PLAYER.pos, FALSE))
     {
+        // Landed on a trigger
         return;
     }
 
@@ -409,7 +410,6 @@ void pointnclick_update() BANKED
             actor_set_dir(&PLAYER, DIR_UP, FALSE);
         }
 
-        // actor_set_dir(&PLAYER, FLIPPED_DIR(hit_actor->dir), FALSE);
         player_register_collision_with(hit_actor);
     }
 

@@ -59,7 +59,7 @@
                     "frame": 0,
                     "animate": false,
                     "spriteSheetId": "222ee998-f58e-4ed1-899f-a184d62ce8c8",
-                    "direction": "up",
+                    "direction": "down",
                     "moveSpeed": 1,
                     "animSpeed": 15,
                     "paletteId": "",
