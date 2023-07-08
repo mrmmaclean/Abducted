@@ -37,7 +37,8 @@ static uint8_t door_far_visible;
 
 void push_doors_to_stack() BANKED
 {
-    
+    vm_push(&THIS, door_near_visible);
+    vm_push(&THIS, door_far_visible);
 }
 
 void build_left() BANKED
