@@ -32,6 +32,14 @@ static uint8_t tile;
 
 static uint8_t open;
 
+static uint8_t door_near_visible;
+static uint8_t door_far_visible;
+
+void push_doors_to_stack() BANKED
+{
+    
+}
+
 void build_left() BANKED
 {
     // Left
