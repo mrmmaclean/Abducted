@@ -1,5 +1,6 @@
 #pragma bank 255
 
+// #include "gbdk/platform.h"
 #include "data/states_defines.h"
 #include "states/pointnclick.h"
 
@@ -32,14 +33,8 @@ static uint8_t tile;
 
 static uint8_t open;
 
-static uint8_t door_near_visible;
-static uint8_t door_far_visible;
-
-void push_doors_to_stack() BANKED
-{
-    vm_push(&THIS, door_near_visible);
-    vm_push(&THIS, door_far_visible);
-}
+uint8_t door_near_visible = FALSE;
+uint8_t door_far_visible = FALSE;
 
 void build_left() BANKED
 {
@@ -426,6 +421,25 @@ void pointnclick_update() BANKED
     if (view_dirty)
     {
         solve_view();
+        door_far_visible = FALSE;
+        door_near_visible = FALSE;
+
         build_view();
+
+        // Update doors
+        if (!viewport[2][2])
+        {
+            if (actor_in_front_of_player(8, FALSE))
+            {
+                door_near_visible = TRUE;
+            }
+            else if (!viewport[2][1])
+            {
+                if (actor_in_front_of_player(16, FALSE))
+                {
+                    door_far_visible = TRUE;
+                }
+            }
+        }
     }
 }
