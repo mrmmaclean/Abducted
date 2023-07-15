@@ -7,8 +7,10 @@
 #define VIEW_TOP 2u
 #define VIEW_WIDTH 20u
 
-extern uint8_t door_near_visible;
-extern uint8_t door_far_visible;
+extern uint8_t crawler_sprite_near_visible;
+extern uint8_t crawler_sprite_far_visible;
+extern uint8_t crawler_sprite_middle_visible;
+// extern uint8_t crawler_actor;
 
 void pointnclick_init();
 void pointnclick_update();

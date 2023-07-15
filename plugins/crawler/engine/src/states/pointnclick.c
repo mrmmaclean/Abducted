@@ -33,8 +33,10 @@ static uint8_t tile;
 
 static uint8_t open;
 
-uint8_t door_near_visible = FALSE;
-uint8_t door_far_visible = FALSE;
+uint8_t crawler_sprite_near_visible = FALSE;
+uint8_t crawler_sprite_far_visible = FALSE;
+uint8_t crawler_sprite_middle_visible = FALSE;
+// uint8_t crawler_actor = FALSE;
 
 void build_left() BANKED
 {
@@ -421,23 +423,35 @@ void pointnclick_update() BANKED
     if (view_dirty)
     {
         solve_view();
-        door_far_visible = FALSE;
-        door_near_visible = FALSE;
+        crawler_sprite_far_visible = FALSE;
+        crawler_sprite_near_visible = FALSE;
+        // crawler_actor = FALSE;
 
         build_view();
 
-        // Update doors
+        // Update doors/sprites
         if (!viewport[2][2])
         {
-            if (actor_in_front_of_player(8, FALSE))
+            hit_actor = actor_in_front_of_player(8, FALSE);
+            if (hit_actor != NULL && hit_actor->collision_group)
             {
-                door_near_visible = TRUE;
+                // crawler_actor = 0;
+                crawler_sprite_near_visible = TRUE;
             }
             else if (!viewport[2][1])
             {
-                if (actor_in_front_of_player(16, FALSE))
+                hit_actor = actor_in_front_of_player(16, FALSE);
+                // COLLISION_GROUP_NONE = 0,
+                // COLLISION_GROUP_PLAYER = 1,
+                // COLLISION_GROUP_1 = 2,
+                // COLLISION_GROUP_2 = 4,
+                // COLLISION_GROUP_3 = 8,
+
+                if (hit_actor != NULL && hit_actor->collision_group == COLLISION_GROUP_1)
                 {
-                    door_far_visible = TRUE;
+                    // Far door
+                    crawler_sprite_far_visible = TRUE;
+                    script_execute(hit_actor->script.bank, hit_actor->script.ptr, 0, 1, (uint16_t)(COLLISION_GROUP_1));
                 }
             }
         }
