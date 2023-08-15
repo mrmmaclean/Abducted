@@ -7,11 +7,6 @@ export const fields = [
 		label: "Crawler Engine Variables",
 	},
 	{
-		key: "farVisibleVar",
-		label: "crawler_sprite_far_visible",
-		type: "variable",
-	},
-	{
 		key: "nearVisibleVar",
 		label: "crawler_sprite_near_visible",
 		type: "variable",
@@ -21,17 +16,32 @@ export const fields = [
 		label: "crawler_sprite_middle_visible",
 		type: "variable",
 	},
-	// {
-	// 	key: "actorRef",
-	// 	label: "crawler_actor",
-	// 	type: "variable",
-	// },
+	{
+		key: "farVisibleVar",
+		label: "crawler_sprite_far_visible",
+		type: "variable",
+	},
 ];
 
 export const compile = (input, helpers) => {
-	const { _getMemUInt8, _getMemInt16 } = helpers;
-	_getMemUInt8(input.farVisibleVar, "crawler_sprite_far_visible");
-	_getMemUInt8(input.middleVisibleVar, "crawler_sprite_middle_visible");
-	_getMemUInt8(input.nearVisibleVar, "crawler_sprite_near_visible");
-	// _getMemInt16(input.actorRef, "crawler_actor");
+	const { getVariableAlias, appendRaw } = helpers;
+
+	const nearVariableAlias = getVariableAlias(input.nearVisibleVar);
+	const midVariableAlias = getVariableAlias(input.middleVisibleVar);
+	const farVariableAlias = getVariableAlias(input.farVisibleVar);
+
+	appendRaw(
+		`VM_GET_UINT8 ${nearVariableAlias}, _crawler_sprite_near_visible
+		VM_GET_UINT8 ${midVariableAlias}, _crawler_sprite_middle_visible
+		VM_GET_UINT8 ${farVariableAlias}, _crawler_sprite_far_visible`
+	);
+};
+
+module.exports = {
+	id,
+	name,
+	groups,
+	fields,
+	compile,
+	allowedBeforeInitFade: false,
 };

@@ -10,12 +10,13 @@
 #include "input.h"
 #include "vm.h"
 #include "trigger.h"
+#include "palette.h"
 
 const int8_t dirx[4] = {0, 1, 0, -1};
 const int8_t diry[4] = {1, 0, -1, 0};
+const uint16_t *vram_ptr = 0x9a00;
 
 static uint8_t _saved;
-static uint8_t view_dirty;
 
 static uint16_t px;
 static uint16_t py;
@@ -25,214 +26,27 @@ static uint16_t last_py;
 static uint8_t dir;
 static uint8_t strafe;
 
-static uint8_t viewport[5][3];
+static uint8_t viewport[3][4];
 
 static uint8_t vx;
 static uint8_t vy;
 static uint8_t tile;
 
 static uint8_t open;
+static uint8_t wall;
+static uint8_t door;
+static uint8_t l_side, r_side;
+static uint8_t set_buffer;
+
+#define cam_offset 16
 
 uint8_t crawler_sprite_near_visible = FALSE;
 uint8_t crawler_sprite_far_visible = FALSE;
 uint8_t crawler_sprite_middle_visible = FALSE;
-// uint8_t crawler_actor = FALSE;
 
-void build_left() BANKED
-{
-    // Left
-    if (viewport[1][2])
-    {
-        // Closest side
-        set_bkg_chunk(0u, VIEW_TOP, 5u, VIEW_HEIGHT, 20u, 20u);
-        // If forward is open...
-        if (!viewport[2][1])
-        {
-            if (viewport[1][1])
-            {
-                // draw next side
-                set_bkg_chunk(5u, VIEW_TOP, 3u, VIEW_HEIGHT, 25u, 20u);
-            }
-            else
-            {
-                // draw farthest facing or open
-                if (viewport[1][0])
-                {
-                    set_bkg_chunk(5u, VIEW_TOP, 3u, VIEW_HEIGHT, 5u, 2u);
-                }
-                else
-                {
-                    set_bkg_chunk(5u, VIEW_TOP, 3u, VIEW_HEIGHT, 9u, 2u);
-                }
-            }
-        }
-    }
-    else
-    {
-        if (viewport[1][1])
-        {
-            set_bkg_chunk(0, VIEW_TOP, 5u, VIEW_HEIGHT, 25u, 0);
-            if (!viewport[2][1])
-            {
-                set_bkg_chunk(5u, VIEW_TOP, 3u, VIEW_HEIGHT, 25u, 20u);
-            }
-        }
-        else
-        {
-            if (viewport[0][1])
-            {
-                set_bkg_chunk(0, VIEW_TOP, 4u, VIEW_HEIGHT, 0, 2u);
-            }
-            else
-            {
-                if (viewport[0][0])
-                {
-                    set_bkg_chunk(0, VIEW_TOP, 4u, VIEW_HEIGHT, 4u, 2u);
-                }
-                else
-                {
-                    set_bkg_chunk(0, VIEW_TOP, 4u, VIEW_HEIGHT, 8u, 2u);
-                }
-            }
-            if (viewport[2][1])
-            {
-                if (viewport[1][0])
-                {
-                    set_bkg_chunk(4u, VIEW_TOP, 1u, VIEW_HEIGHT, 4u, 2u);
-                }
-                else
-                {
-                    set_bkg_chunk(4u, VIEW_TOP, 1u, VIEW_HEIGHT, 8u, 2u);
-                }
-            }
-            else
-            {
-                if (viewport[1][0])
-                {
-                    set_bkg_chunk(4u, VIEW_TOP, 4u, VIEW_HEIGHT, 4u, 2u);
-                }
-                else
-                {
-                    set_bkg_chunk(4u, VIEW_TOP, 4u, VIEW_HEIGHT, 8u, 2u);
-                }
-            }
-        }
-    }
-}
-
-void build_right() BANKED
-{
-    // Right
-    if (viewport[3][2])
-    {
-        // Closest side
-        set_bkg_chunk(15u, VIEW_TOP, 5u, VIEW_HEIGHT, 23u, 10u);
-        // If forward is open...
-        if (!viewport[2][1])
-        {
-            if (viewport[3][1])
-            {
-                // draw next side
-                set_bkg_chunk(12u, VIEW_TOP, 3u, VIEW_HEIGHT, 20u, 10u);
-            }
-            else
-            {
-                // draw farthest facing or open
-                if (viewport[3][0])
-                {
-                    set_bkg_chunk(12u, VIEW_TOP, 3u, VIEW_HEIGHT, 4u, 2u);
-                }
-                else
-                {
-                    set_bkg_chunk(12u, VIEW_TOP, 3u, VIEW_HEIGHT, 8u, 2u);
-                }
-            }
-        }
-    }
-    else
-    {
-        if (viewport[3][1])
-        {
-            set_bkg_chunk(15u, VIEW_TOP, 5u, VIEW_HEIGHT, 20u, 0);
-            if (!viewport[2][1])
-            {
-                set_bkg_chunk(12u, VIEW_TOP, 3u, VIEW_HEIGHT, 20u, 10u);
-            }
-        }
-        else
-        {
-            if (viewport[4][1])
-            {
-                set_bkg_chunk(16u, VIEW_TOP, 4u, VIEW_HEIGHT, 16u, 2u);
-            }
-            else
-            {
-                if (viewport[4][0])
-                {
-                    set_bkg_chunk(16u, VIEW_TOP, 4u, VIEW_HEIGHT, 4u, 2u);
-                }
-                else
-                {
-                    set_bkg_chunk(16u, VIEW_TOP, 4u, VIEW_HEIGHT, 8u, 2u);
-                }
-            }
-            if (viewport[2][1])
-            {
-                if (viewport[3][0])
-                {
-                    set_bkg_chunk(15u, VIEW_TOP, 1u, VIEW_HEIGHT, 7u, 2u);
-                }
-                else
-                {
-                    set_bkg_chunk(15u, VIEW_TOP, 1u, VIEW_HEIGHT, 11u, 2u);
-                }
-            }
-            else
-            {
-                if (viewport[3][0])
-                {
-                    set_bkg_chunk(12u, VIEW_TOP, 4u, VIEW_HEIGHT, 4u, 2u);
-                }
-                else
-                {
-                    set_bkg_chunk(12u, VIEW_TOP, 4u, VIEW_HEIGHT, 8u, 2u);
-                }
-            }
-        }
-    }
-}
-
-void build_view() BANKED
-{
-    // Tile immediately in front
-    if (viewport[2][2])
-    {
-        set_bkg_chunk(0u, VIEW_TOP, VIEW_WIDTH, VIEW_HEIGHT, 0u, 18u);
-    }
-    else
-    {
-        build_left();
-        build_right();
-
-        // Build middle
-        if (viewport[2][1])
-        {
-            set_bkg_chunk(5u, VIEW_TOP, 10u, VIEW_HEIGHT, 20u, 0);
-        }
-        else
-        {
-            if (viewport[2][0])
-            {
-                set_bkg_chunk(8u, VIEW_TOP, 4u, VIEW_HEIGHT, 4u, 2u);
-            }
-            else
-            {
-                set_bkg_chunk(8u, VIEW_TOP, 4u, VIEW_HEIGHT, 8u, 2u);
-            }
-        }
-    }
-    view_dirty = FALSE;
-}
+uint8_t minimap = TRUE;
+static uint8_t old_minimap = FALSE;
+uint8_t view_dirty = TRUE;
 
 void set_bkg_chunk(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t sx, uint8_t sy) NONBANKED
 {
@@ -240,7 +54,7 @@ void set_bkg_chunk(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t sx, uint8
     _saved = _current_bank;
     SWITCH_ROM(image_bank);
 
-    set_bkg_submap(x, y, w, h, image_ptr + (sx - x) + (image_tile_width * (sy - y)), image_tile_width);
+    set_bkg_submap(x, y + (cam_offset * set_buffer), w, h, image_ptr + (sx - x) + (image_tile_width * (sy - y - (cam_offset * set_buffer))), image_tile_width);
     SWITCH_ROM(_saved);
 }
 
@@ -248,6 +62,106 @@ uint8_t get_bkg_tile(uint8_t x, uint8_t y) NONBANKED
 {
     tile = ReadBankedUBYTE(image_ptr + (y * image_tile_width) + x, image_bank);
     return tile;
+}
+
+void build_view() BANKED
+{
+    l_side = FALSE;
+    r_side = FALSE;
+
+    // draw from back to front
+    // Background
+    set_bkg_chunk(0u, 2u, 20u, 10u, 27u, 0u);
+    fill_bkg_rect(30u, 0u, 2u, 18u, open);
+
+    // Back wall
+    for (uint8_t i = 0; i < 3; i++)
+    {
+        if (viewport[i][3u])
+        {
+            if (viewport[i][3u] == door)
+                set_bkg_chunk((i << 2) + 4, 6u, 4u, 4u, 43u, 10u);
+            else
+                set_bkg_chunk((i << 2) + 4, 6u, 4u, 4u, 33u, 10u);
+        }
+    }
+
+    // Back row
+    for (uint8_t i = 0; i < 3; i++)
+    {
+        if (viewport[i][2u])
+        {
+            for (uint8_t col = 0; col < 6; col++)
+            {
+                // if (col + (i * 6) >= 0 && col + (i * 6) < 18)
+                // {
+                if (viewport[i][2u] == door)
+                    set_bkg_chunk(col + (i * 6u) + 1, 5u, 1u, 6u, 37u + col, 10u);
+                else
+                    set_bkg_chunk(col + (i * 6u) + 1, 5u, 1u, 6u, 27u + col, 10u);
+                // }
+            }
+            if (i == 0)
+                l_side = TRUE;
+            if (i == 2)
+                r_side = TRUE;
+        }
+    }
+    if (!viewport[1u][2u])
+    {
+        if (l_side)
+            set_bkg_chunk(7u, 5u, 1u, 6u, 63u, 3u);
+        if (r_side)
+            set_bkg_chunk(12u, 5u, 1u, 6u, 57u, 13u);
+    }
+
+    // Middle row
+    l_side = FALSE;
+    r_side = FALSE;
+
+    for (uint8_t i = 0; i < 3; i++)
+    {
+        if (viewport[i][1u])
+        {
+            for (uint8_t col = 0; col < 10; col++)
+            {
+                if (col + (i * 10) - 5 >= 1 && col + (i * 10) - 5 < 19)
+                {
+                    if (viewport[i][1u] == door)
+                        set_bkg_chunk(col + (i * 10u) - 5, 3u, 1u, 9u, 47u + col, 1u);
+                    else
+                        set_bkg_chunk(col + (i * 10u) - 5, 3u, 1u, 9u, 47u + col, 11u);
+                }
+            }
+            if (i == 0)
+                l_side = TRUE;
+            if (i == 2)
+                r_side = TRUE;
+        }
+    }
+    if (!viewport[1u][1u])
+    {
+        if (l_side)
+            set_bkg_chunk(5u, 3u, 2u, 9u, 61u, 1u);
+        if (r_side)
+            set_bkg_chunk(13u, 3u, 2u, 9u, 58u, 11u);
+    }
+
+    // Front row
+    if (viewport[1u][0])
+    {
+        if (viewport[1u][0] == door)
+            set_bkg_chunk(1u, 2u, 18u, 10u, 27u, 16u);
+        else
+            set_bkg_chunk(1u, 2u, 18u, 10u, 46u, 20u);
+    }
+    else
+    {
+        if (viewport[0][0])
+            set_bkg_chunk(1u, 2u, 4u, 10u, 57u, 0u);
+        if (viewport[2u][0])
+            set_bkg_chunk(15u, 2u, 4u, 10u, 60u, 10u);
+    }
 }
 
 void solve_view() BANKED
@@ -259,46 +173,46 @@ void solve_view() BANKED
     switch (PLAYER.dir)
     {
     case 0:
-        for (uint8_t i = 0; i < 5; i++)
+        for (uint8_t i = 0; i < 3; i++)
         {
-            for (uint8_t j = 0; j < 3; j++)
+            for (uint8_t j = 0; j < 4; j++)
             {
-                vx = (px + 2 - i);
-                vy = (py + 3 - j);
-                viewport[i][j] = get_bkg_tile(vx, vy) == open ? 0 : 1;
+                vx = (px + 1 - i);
+                vy = (py + 1 + j);
+                viewport[i][j] = get_bkg_tile(vx, vy) == open ? 0 : get_bkg_tile(vx, vy);
             }
         }
         break;
     case 1:
-        for (uint8_t i = 0; i < 5; i++)
+        for (uint8_t i = 0; i < 3; i++)
         {
-            for (uint8_t j = 0; j < 3; j++)
+            for (uint8_t j = 0; j < 4; j++)
             {
                 vx = (px + 1 + j);
-                vy = (py - 2 + i);
-                viewport[i][2 - j] = get_bkg_tile(vx, vy) == open ? 0 : 1;
+                vy = (py - 1 + i);
+                viewport[i][j] = get_bkg_tile(vx, vy) == open ? 0 : get_bkg_tile(vx, vy);
             }
         }
         break;
     case 2:
-        for (uint8_t i = 0; i < 5; i++)
+        for (uint8_t i = 0; i < 3; i++)
         {
-            for (uint8_t j = 0; j < 3; j++)
+            for (uint8_t j = 0; j < 4; j++)
             {
-                vx = (px - 2 + i);
-                vy = (py - 3 + j);
-                viewport[i][j] = get_bkg_tile(vx, vy) == open ? 0 : 1;
+                vx = (px - 1 + i);
+                vy = (py - 1 - j);
+                viewport[i][j] = get_bkg_tile(vx, vy) == open ? 0 : get_bkg_tile(vx, vy);
             }
         }
         break;
     case 3:
-        for (uint8_t i = 0; i < 5; i++)
+        for (uint8_t i = 0; i < 3; i++)
         {
-            for (uint8_t j = 0; j < 3; j++)
+            for (uint8_t j = 0; j < 4; j++)
             {
                 vx = (px - 1 - j);
-                vy = (py + 2 - i);
-                viewport[i][2 - j] = get_bkg_tile(vx, vy) == open ? 0 : 1;
+                vy = (py + 1 - i);
+                viewport[i][j] = get_bkg_tile(vx, vy) == open ? 0 : get_bkg_tile(vx, vy);
             }
         }
         break;
@@ -316,144 +230,231 @@ void player_move_to(uint8_t px, uint8_t py) BANKED
     view_dirty = TRUE;
 }
 
+void get_sprite_visibility() BANKED
+{
+    // If there's an actor, then show it
+    actor_t *hit_actor;
+
+    if (viewport[1u][0] != wall)
+    {
+        hit_actor = actor_in_front_of_player(8, FALSE);
+        if (hit_actor != NULL && hit_actor->collision_group && hit_actor->active)
+        {
+            // crawler_actor = 0;
+            crawler_sprite_near_visible = TRUE;
+            script_execute(hit_actor->script.bank, hit_actor->script.ptr, 0, 1, (uint16_t)(COLLISION_GROUP_1));
+            return;
+        }
+    }
+    else
+        return;
+
+    if (viewport[1u][1u] != wall)
+    {
+        hit_actor = actor_in_front_of_player(16, FALSE);
+        if (hit_actor != NULL && hit_actor->collision_group == COLLISION_GROUP_1 && hit_actor->active)
+        {
+            crawler_sprite_middle_visible = TRUE;
+            script_execute(hit_actor->script.bank, hit_actor->script.ptr, 0, 1, (uint16_t)(COLLISION_GROUP_2));
+            return;
+        }
+    }
+    else
+        return;
+
+    if (viewport[1u][2u] != wall)
+    {
+        hit_actor = actor_in_front_of_player(24, FALSE);
+        if (hit_actor != NULL && hit_actor->collision_group == COLLISION_GROUP_1 && hit_actor->active)
+        {
+            crawler_sprite_far_visible = TRUE;
+            script_execute(hit_actor->script.bank, hit_actor->script.ptr, 0, 1, (uint16_t)(COLLISION_GROUP_3));
+            return;
+        }
+    }
+    else
+        return;
+}
+
 void pointnclick_init() BANKED
 {
     // Render view in first update
     view_dirty = TRUE;
     // Set "open" tile to top left tile in map area
-    open = get_bkg_tile(0, 32);
+    open = get_bkg_tile(0u, 32u);
+    wall = get_bkg_tile(1u, 32u);
+    door = get_bkg_tile(2u, 32u);
+
+    // Set second sprite palette to default
+    DMG_palette[2] = DMG_PALETTE(DMG_BLACK, DMG_WHITE, DMG_LITE_GRAY, DMG_BLACK);
 }
 
 void pointnclick_update() BANKED
 {
     actor_t *hit_actor;
-
-    // Check for trigger collisions
     if (trigger_activate_at_intersection(&PLAYER.bounds, &PLAYER.pos, FALSE))
     {
-        // Landed on a trigger
         return;
     }
 
     // Input
-    if (INPUT_UP_PRESSED && !view_dirty)
+    if (!view_dirty)
     {
-        px = (PLAYER.pos.x >> 7) + dirx[PLAYER.dir];
-        py = (PLAYER.pos.y >> 7) + diry[PLAYER.dir];
-        if (get_bkg_tile(px, py) == open)
+        if (INPUT_UP_PRESSED || INPUT_A_PRESSED)
         {
-            player_move_to(px, py);
+            px = (PLAYER.pos.x >> 7) + dirx[PLAYER.dir];
+            py = (PLAYER.pos.y >> 7) + diry[PLAYER.dir];
+            if (get_bkg_tile(px, py) == open || get_bkg_tile(px, py) == door)
+            {
+                player_move_to(px, py);
+            }
         }
-    }
-    else if (INPUT_DOWN_PRESSED && !view_dirty)
-    {
-        px = (PLAYER.pos.x >> 7) - dirx[PLAYER.dir];
-        py = (PLAYER.pos.y >> 7) - diry[PLAYER.dir];
-        if (get_bkg_tile(px, py) == open)
+        else if (INPUT_DOWN_PRESSED)
         {
-            player_move_to(px, py);
-        }
-    }
-    else if (INPUT_RIGHT_PRESSED && !view_dirty)
-    {
-        if (INPUT_B)
-        {
-            // Strafe
-            strafe = (PLAYER.dir - 1) & 3;
-            px = (PLAYER.pos.x >> 7) + dirx[strafe];
-            py = (PLAYER.pos.y >> 7) + diry[strafe];
+            px = (PLAYER.pos.x >> 7) - dirx[PLAYER.dir];
+            py = (PLAYER.pos.y >> 7) - diry[PLAYER.dir];
             if (get_bkg_tile(px, py) == open)
             {
                 player_move_to(px, py);
             }
         }
-        else
+        else if (INPUT_RIGHT_PRESSED)
         {
-            PLAYER.dir = (PLAYER.dir - 1) & 3;
-            view_dirty = TRUE;
-        }
-    }
-    else if (INPUT_LEFT_PRESSED && !view_dirty)
-    {
-        if (INPUT_B)
-        {
-            // Strafe
-            strafe = (PLAYER.dir + 1) & 3;
-            px = (PLAYER.pos.x >> 7) + dirx[strafe];
-            py = (PLAYER.pos.y >> 7) + diry[strafe];
-            if (get_bkg_tile(px, py) == open)
+            if (INPUT_B)
             {
-                player_move_to(px, py);
+                // Strafe
+                strafe = (PLAYER.dir - 1) & 3;
+                px = (PLAYER.pos.x >> 7) + dirx[strafe];
+                py = (PLAYER.pos.y >> 7) + diry[strafe];
+                if (get_bkg_tile(px, py) == open)
+                {
+                    player_move_to(px, py);
+                }
+            }
+            else
+            {
+                // Turn
+                PLAYER.dir = (PLAYER.dir - 1) & 3;
+                view_dirty = TRUE;
             }
         }
-        else
+        else if (INPUT_LEFT_PRESSED)
         {
-            PLAYER.dir = (PLAYER.dir + 1) & 3;
-            view_dirty = TRUE;
+            if (INPUT_B)
+            {
+                // Strafe
+                strafe = (PLAYER.dir + 1) & 3;
+                px = (PLAYER.pos.x >> 7) + dirx[strafe];
+                py = (PLAYER.pos.y >> 7) + diry[strafe];
+                if (get_bkg_tile(px, py) == open)
+                {
+                    player_move_to(px, py);
+                }
+            }
+            else
+            {
+                // Turn
+                PLAYER.dir = (PLAYER.dir + 1) & 3;
+                view_dirty = TRUE;
+            }
         }
-    }
-
-    // Check for actor collision
-    hit_actor = actor_overlapping_player(FALSE);
-    if (hit_actor != NULL && hit_actor->collision_group)
-    {
-        player_move_to(last_px >> 7, last_py >> 7);
-        // Set the player to face the actor (in case of strafe)
-        if (last_px > PLAYER.pos.x)
-        {
-            actor_set_dir(&PLAYER, DIR_RIGHT, FALSE);
-        }
-        else if (last_px < PLAYER.pos.x)
-        {
-            actor_set_dir(&PLAYER, DIR_LEFT, FALSE);
-        }
-        if (last_py > PLAYER.pos.y)
-        {
-            actor_set_dir(&PLAYER, DIR_DOWN, FALSE);
-        }
-        else if (last_py < PLAYER.pos.y)
-        {
-            actor_set_dir(&PLAYER, DIR_UP, FALSE);
-        }
-
-        player_register_collision_with(hit_actor);
     }
 
     // Update view
     if (view_dirty)
     {
-        solve_view();
-        crawler_sprite_far_visible = FALSE;
-        crawler_sprite_near_visible = FALSE;
-        // crawler_actor = FALSE;
+        // Check for actor collision
+        hit_actor = NULL;
 
-        build_view();
-
-        // Update doors/sprites
-        if (!viewport[2][2])
+        hit_actor = actor_overlapping_player(FALSE);
+        if (hit_actor != NULL && hit_actor->collision_group && hit_actor->active)
         {
-            hit_actor = actor_in_front_of_player(8, FALSE);
-            if (hit_actor != NULL && hit_actor->collision_group)
+            // Put player back to last space
+            player_move_to(last_px >> 7, last_py >> 7);
+            // Set the player to face the actor (in case of strafe)
+            if (last_px > PLAYER.pos.x)
             {
-                // crawler_actor = 0;
-                crawler_sprite_near_visible = TRUE;
+                actor_set_dir(&PLAYER, DIR_RIGHT, FALSE);
             }
-            else if (!viewport[2][1])
+            else if (last_px < PLAYER.pos.x)
             {
-                hit_actor = actor_in_front_of_player(16, FALSE);
-                // COLLISION_GROUP_NONE = 0,
-                // COLLISION_GROUP_PLAYER = 1,
-                // COLLISION_GROUP_1 = 2,
-                // COLLISION_GROUP_2 = 4,
-                // COLLISION_GROUP_3 = 8,
+                actor_set_dir(&PLAYER, DIR_LEFT, FALSE);
+            }
+            if (last_py > PLAYER.pos.y)
+            {
+                actor_set_dir(&PLAYER, DIR_DOWN, FALSE);
+            }
+            else if (last_py < PLAYER.pos.y)
+            {
+                actor_set_dir(&PLAYER, DIR_UP, FALSE);
+            }
 
-                if (hit_actor != NULL && hit_actor->collision_group == COLLISION_GROUP_1)
-                {
-                    // Far door
-                    crawler_sprite_far_visible = TRUE;
-                    script_execute(hit_actor->script.bank, hit_actor->script.ptr, 0, 1, (uint16_t)(COLLISION_GROUP_1));
-                }
+            // Turn off minimap
+            minimap = FALSE;
+            player_register_collision_with(hit_actor);
+        }
+
+        crawler_sprite_far_visible = FALSE;
+        crawler_sprite_middle_visible = FALSE;
+        crawler_sprite_near_visible = FALSE;
+
+        // Rotate the visible map to screen space
+        solve_view();
+
+        // Draw view to buffer area
+        set_buffer = 1u;
+        build_view();
+        set_buffer = 0;
+
+        // Update sprites
+        get_sprite_visibility();
+
+        // Minimap
+        if (minimap)
+        {
+            if (old_minimap != minimap)
+            {
+                // if minimap is just appearing, draw border
+                set_buffer = 1u;
+                set_bkg_chunk(13u, 11u, 7u, 1u, 20u, 0u);
+                set_buffer = 0;
+
+                set_bkg_chunk(13u, 12u, 7u, 6u, 20u, 1u);                                          // border
+                set_bkg_chunk(14u, 12u, 5u, 5u, (PLAYER.pos.x >> 7) - 2, (PLAYER.pos.y >> 7) - 2); // map
+                set_bkg_chunk(16u, 14u, 1u, 1u, 23u, 3u);                                          // player icon
+            }
+            else
+            {
+                // otherwise just refresh the map and fix the top edge (avoid flickering)
+                set_buffer = 1u;
+                set_bkg_chunk(13u, 11u, 7u, 1u, 20u, 0u);
+                set_buffer = 0;
+
+                set_bkg_chunk(14u, 12u, 5u, 5u, (PLAYER.pos.x >> 7) - 2, (PLAYER.pos.y >> 7) - 2); // map
+                set_bkg_chunk(16u, 14u, 1u, 1u, 23u, 3u);                                          // player icon
             }
         }
+        else
+        {
+            if (old_minimap != minimap)
+            {
+                // clear away map border
+                for (uint8_t i = 0; i < 7; i++)
+                {
+                    set_bkg_chunk(13u + i, 12u, 1u, 6u, 12u, 12u);
+                }
+                set_bkg_chunk(19u, 11u, 1u, 2u, 19u, 11u);
+            }
+        }
+        old_minimap = minimap;
+
+        // Copy offscreen to screen
+        set_bkg_submap(1, 2u, 18u, 10u, vram_ptr, 32u); // 32u for VRAM width rather than image width
+        // Fix minimap corner after buffer copy
+        if (minimap)
+            set_bkg_chunk(19u, 11u, 1u, 1u, 26u, 0u);
+
+        //  Done
+        view_dirty = FALSE;
     }
 }
