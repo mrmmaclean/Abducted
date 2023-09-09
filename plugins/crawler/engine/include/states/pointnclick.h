@@ -11,10 +11,15 @@
 
 extern uint8_t view_dirty;
 extern uint8_t minimap;
+extern uint8_t is_minimap_selected;
 
 extern uint8_t crawler_sprite_near_visible;
 extern uint8_t crawler_sprite_far_visible;
 extern uint8_t crawler_sprite_middle_visible;
+
+extern uint8_t open, door, wall;
+extern const int8_t dirx[4];
+extern const int8_t diry[4];
 
 void set_bkg_chunk(UBYTE x, UBYTE y, UBYTE w, UBYTE h, UBYTE sx, UBYTE sy) NONBANKED;
 uint8_t get_bkg_tile(uint8_t x, uint8_t y) NONBANKED;

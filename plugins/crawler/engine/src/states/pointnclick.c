@@ -32,9 +32,9 @@ static uint8_t vx;
 static uint8_t vy;
 static uint8_t tile;
 
-static uint8_t open;
-static uint8_t wall;
-static uint8_t door;
+uint8_t open;
+uint8_t wall;
+uint8_t door;
 static uint8_t l_side, r_side;
 static uint8_t set_buffer;
 
@@ -44,9 +44,10 @@ uint8_t crawler_sprite_near_visible = FALSE;
 uint8_t crawler_sprite_far_visible = FALSE;
 uint8_t crawler_sprite_middle_visible = FALSE;
 
-uint8_t minimap = TRUE;
-static uint8_t old_minimap = FALSE;
-uint8_t view_dirty = TRUE;
+uint8_t minimap;
+uint8_t is_minimap_selected;
+static uint8_t old_minimap;
+uint8_t view_dirty;
 
 void set_bkg_chunk(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t sx, uint8_t sy) NONBANKED
 {
@@ -280,6 +281,11 @@ void pointnclick_init() BANKED
 {
     // Render view in first update
     view_dirty = TRUE;
+
+    minimap = FALSE;
+    is_minimap_selected = FALSE;
+    old_minimap = FALSE;
+
     // Set "open" tile to top left tile in map area
     open = get_bkg_tile(0u, 32u);
     wall = get_bkg_tile(1u, 32u);
@@ -320,18 +326,18 @@ void pointnclick_update() BANKED
         }
         else if (INPUT_RIGHT_PRESSED)
         {
-            if (INPUT_B)
-            {
-                // Strafe
-                strafe = (PLAYER.dir - 1) & 3;
-                px = (PLAYER.pos.x >> 7) + dirx[strafe];
-                py = (PLAYER.pos.y >> 7) + diry[strafe];
-                if (get_bkg_tile(px, py) == open)
-                {
-                    player_move_to(px, py);
-                }
-            }
-            else
+            // if (INPUT_B)
+            // {
+            //     // Strafe
+            //     strafe = (PLAYER.dir - 1) & 3;
+            //     px = (PLAYER.pos.x >> 7) + dirx[strafe];
+            //     py = (PLAYER.pos.y >> 7) + diry[strafe];
+            //     if (get_bkg_tile(px, py) == open)
+            //     {
+            //         player_move_to(px, py);
+            //     }
+            // }
+            // else
             {
                 // Turn
                 PLAYER.dir = (PLAYER.dir - 1) & 3;
@@ -340,18 +346,18 @@ void pointnclick_update() BANKED
         }
         else if (INPUT_LEFT_PRESSED)
         {
-            if (INPUT_B)
-            {
-                // Strafe
-                strafe = (PLAYER.dir + 1) & 3;
-                px = (PLAYER.pos.x >> 7) + dirx[strafe];
-                py = (PLAYER.pos.y >> 7) + diry[strafe];
-                if (get_bkg_tile(px, py) == open)
-                {
-                    player_move_to(px, py);
-                }
-            }
-            else
+            // if (INPUT_B)
+            // {
+            //     // Strafe
+            //     strafe = (PLAYER.dir + 1) & 3;
+            //     px = (PLAYER.pos.x >> 7) + dirx[strafe];
+            //     py = (PLAYER.pos.y >> 7) + diry[strafe];
+            //     if (get_bkg_tile(px, py) == open)
+            //     {
+            //         player_move_to(px, py);
+            //     }
+            // }
+            // else
             {
                 // Turn
                 PLAYER.dir = (PLAYER.dir + 1) & 3;
@@ -416,22 +422,22 @@ void pointnclick_update() BANKED
             {
                 // if minimap is just appearing, draw border
                 set_buffer = 1u;
-                set_bkg_chunk(13u, 11u, 7u, 1u, 20u, 0u);
+                set_bkg_chunk(13u, 11u, 7u, 1u, 20u, 12u);
                 set_buffer = 0;
 
-                set_bkg_chunk(13u, 12u, 7u, 6u, 20u, 1u);                                          // border
+                set_bkg_chunk(13u, 12u, 7u, 6u, 20u, 13u);                                         // border
                 set_bkg_chunk(14u, 12u, 5u, 5u, (PLAYER.pos.x >> 7) - 2, (PLAYER.pos.y >> 7) - 2); // map
-                set_bkg_chunk(16u, 14u, 1u, 1u, 23u, 3u);                                          // player icon
+                set_bkg_chunk(16u, 14u, 1u, 1u, 23u, 15u);                                         // player icon
             }
             else
             {
                 // otherwise just refresh the map and fix the top edge (avoid flickering)
                 set_buffer = 1u;
-                set_bkg_chunk(13u, 11u, 7u, 1u, 20u, 0u);
+                set_bkg_chunk(13u, 11u, 7u, 1u, 20u, 12u);
                 set_buffer = 0;
 
                 set_bkg_chunk(14u, 12u, 5u, 5u, (PLAYER.pos.x >> 7) - 2, (PLAYER.pos.y >> 7) - 2); // map
-                set_bkg_chunk(16u, 14u, 1u, 1u, 23u, 3u);                                          // player icon
+                set_bkg_chunk(16u, 14u, 1u, 1u, 23u, 15u);                                         // player icon
             }
         }
         else
@@ -452,9 +458,17 @@ void pointnclick_update() BANKED
         set_bkg_submap(1, 2u, 18u, 10u, vram_ptr, 32u); // 32u for VRAM width rather than image width
         // Fix minimap corner after buffer copy
         if (minimap)
-            set_bkg_chunk(19u, 11u, 1u, 1u, 26u, 0u);
+            set_bkg_chunk(19u, 11u, 1u, 1u, 26u, 12u);
 
         //  Done
-        view_dirty = FALSE;
+        if (!minimap && is_minimap_selected)
+        {
+            minimap = is_minimap_selected;
+            // Do one more update
+        }
+        else
+        {
+            view_dirty = FALSE;
+        }
     }
 }
