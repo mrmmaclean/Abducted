@@ -12,12 +12,15 @@
 extern uint8_t view_dirty;
 extern uint8_t minimap;
 extern uint8_t is_minimap_selected;
+extern uint8_t in_combat;
 
 extern uint8_t crawler_sprite_near_visible;
 extern uint8_t crawler_sprite_far_visible;
 extern uint8_t crawler_sprite_middle_visible;
 
-extern uint8_t open, door, wall;
+extern uint8_t open, door, wall, chest;
+extern uint8_t is_chest_ahead, facing_x, facing_y;
+extern int16_t chest_index;
 extern const int8_t dirx[4];
 extern const int8_t diry[4];
 

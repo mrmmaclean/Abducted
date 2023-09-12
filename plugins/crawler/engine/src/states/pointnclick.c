@@ -35,6 +35,8 @@ static uint8_t tile;
 uint8_t open;
 uint8_t wall;
 uint8_t door;
+uint8_t chest;
+
 static uint8_t l_side, r_side;
 static uint8_t set_buffer;
 
@@ -48,6 +50,12 @@ uint8_t minimap;
 uint8_t is_minimap_selected;
 static uint8_t old_minimap;
 uint8_t view_dirty;
+
+uint8_t in_combat;
+uint8_t is_chest_ahead;
+uint8_t facing_x, facing_y;
+int16_t chest_index;
+static actor_t *chest_actor;
 
 void set_bkg_chunk(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t sx, uint8_t sy) NONBANKED
 {
@@ -82,7 +90,7 @@ void build_view() BANKED
         {
             if (viewport[i][3u] == door)
                 set_bkg_chunk((i << 2) + 4, 6u, 4u, 4u, 43u, 10u);
-            else
+            else if (viewport[i][3u] == wall)
                 set_bkg_chunk((i << 2) + 4, 6u, 4u, 4u, 33u, 10u);
         }
     }
@@ -90,17 +98,14 @@ void build_view() BANKED
     // Back row
     for (uint8_t i = 0; i < 3; i++)
     {
-        if (viewport[i][2u])
+        if (viewport[i][2u] != 0 && viewport[i][2u] != chest)
         {
             for (uint8_t col = 0; col < 6; col++)
             {
-                // if (col + (i * 6) >= 0 && col + (i * 6) < 18)
-                // {
                 if (viewport[i][2u] == door)
                     set_bkg_chunk(col + (i * 6u) + 1, 5u, 1u, 6u, 37u + col, 10u);
-                else
+                else if (viewport[i][2u] == wall)
                     set_bkg_chunk(col + (i * 6u) + 1, 5u, 1u, 6u, 27u + col, 10u);
-                // }
             }
             if (i == 0)
                 l_side = TRUE;
@@ -108,7 +113,7 @@ void build_view() BANKED
                 r_side = TRUE;
         }
     }
-    if (!viewport[1u][2u])
+    if (viewport[1u][2u] == 0 || viewport[1u][2u] == chest)
     {
         if (l_side)
             set_bkg_chunk(7u, 5u, 1u, 6u, 63u, 3u);
@@ -122,7 +127,7 @@ void build_view() BANKED
 
     for (uint8_t i = 0; i < 3; i++)
     {
-        if (viewport[i][1u])
+        if (viewport[i][1u] != 0 && viewport[i][1u] != chest)
         {
             for (uint8_t col = 0; col < 10; col++)
             {
@@ -130,7 +135,7 @@ void build_view() BANKED
                 {
                     if (viewport[i][1u] == door)
                         set_bkg_chunk(col + (i * 10u) - 5, 3u, 1u, 9u, 47u + col, 1u);
-                    else
+                    else if (viewport[i][1u] == wall)
                         set_bkg_chunk(col + (i * 10u) - 5, 3u, 1u, 9u, 47u + col, 11u);
                 }
             }
@@ -140,7 +145,7 @@ void build_view() BANKED
                 r_side = TRUE;
         }
     }
-    if (!viewport[1u][1u])
+    if (viewport[1u][1u] == 0 || viewport[1u][1u] == chest)
     {
         if (l_side)
             set_bkg_chunk(5u, 3u, 2u, 9u, 61u, 1u);
@@ -149,11 +154,11 @@ void build_view() BANKED
     }
 
     // Front row
-    if (viewport[1u][0])
+    if (viewport[1u][0] != 0 && viewport[1u][0] != chest)
     {
         if (viewport[1u][0] == door)
             set_bkg_chunk(1u, 2u, 18u, 10u, 27u, 16u);
-        else
+        else if (viewport[1u][0] == wall)
             set_bkg_chunk(1u, 2u, 18u, 10u, 46u, 20u);
     }
     else
@@ -236,6 +241,12 @@ void get_sprite_visibility() BANKED
     // If there's an actor, then show it
     actor_t *hit_actor;
 
+    // Get chest actor once
+    if (chest_actor == NULL)
+        chest_actor = actor_at_tile(3u, 32u, FALSE);
+
+    is_chest_ahead = FALSE;
+
     if (viewport[1u][0] != wall)
     {
         hit_actor = actor_in_front_of_player(8, FALSE);
@@ -244,6 +255,18 @@ void get_sprite_visibility() BANKED
             // crawler_actor = 0;
             crawler_sprite_near_visible = TRUE;
             script_execute(hit_actor->script.bank, hit_actor->script.ptr, 0, 1, (uint16_t)(COLLISION_GROUP_1));
+            return;
+        }
+        if (viewport[1u][0] == chest)
+        {
+            is_chest_ahead = TRUE;
+            crawler_sprite_near_visible = TRUE;
+
+            facing_x = (PLAYER.pos.x >> 7) + dirx[PLAYER.dir];
+            facing_y = (PLAYER.pos.y >> 7) + diry[PLAYER.dir];
+            chest_index = facing_y * image_tile_width + facing_x;
+
+            script_execute(chest_actor->script.bank, chest_actor->script.ptr, 0, 1, (uint16_t)(COLLISION_GROUP_1));
             return;
         }
     }
@@ -285,11 +308,13 @@ void pointnclick_init() BANKED
     minimap = FALSE;
     is_minimap_selected = FALSE;
     old_minimap = FALSE;
+    in_combat = FALSE;
 
     // Set "open" tile to top left tile in map area
     open = get_bkg_tile(0u, 32u);
     wall = get_bkg_tile(1u, 32u);
     door = get_bkg_tile(2u, 32u);
+    chest = get_bkg_tile(3u, 32u);
 
     // Set second sprite palette to default
     DMG_palette[2] = DMG_PALETTE(DMG_BLACK, DMG_WHITE, DMG_LITE_GRAY, DMG_BLACK);
@@ -310,7 +335,7 @@ void pointnclick_update() BANKED
         {
             px = (PLAYER.pos.x >> 7) + dirx[PLAYER.dir];
             py = (PLAYER.pos.y >> 7) + diry[PLAYER.dir];
-            if (get_bkg_tile(px, py) == open || get_bkg_tile(px, py) == door)
+            if (get_bkg_tile(px, py) != wall)
             {
                 player_move_to(px, py);
             }
@@ -377,7 +402,7 @@ void pointnclick_update() BANKED
         {
             // Put player back to last space
             player_move_to(last_px >> 7, last_py >> 7);
-            // Set the player to face the actor (in case of strafe)
+            // Set the player to face the actor
             if (last_px > PLAYER.pos.x)
             {
                 actor_set_dir(&PLAYER, DIR_RIGHT, FALSE);
@@ -461,7 +486,7 @@ void pointnclick_update() BANKED
             set_bkg_chunk(19u, 11u, 1u, 1u, 26u, 12u);
 
         //  Done
-        if (!minimap && is_minimap_selected)
+        if (!minimap && !in_combat && is_minimap_selected)
         {
             minimap = is_minimap_selected;
             // Do one more update

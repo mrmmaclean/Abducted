@@ -113,6 +113,16 @@ const uint8_t enemy_table[] = {
     0x05, 0x03, 0x03, 0x06, 0x0F, 0x01, 0x04, 0x04,
     0x28, 0x26, 0x24, 0x13, 0x31, 0x04, 0x12, 0x46};
 
+const uint8_t encounter_table[] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
 void get_enemy_stats(SCRIPT_CTX *THIS) OLDCALL BANKED
 {
     uint8_t enemy = *(int16_t *)VM_REF_TO_PTR(FN_ARG0);
@@ -171,7 +181,7 @@ void flash_bkg(SCRIPT_CTX *THIS) OLDCALL BANKED
 
 const int8_t wobble_table[] = {4, 7, 9, 10, 9, 7, 4, 0 - 4, -7, -9, -10, -9, -7, -4, 0};
 int8_t wobble_index;
-int8_t counter;
+int16_t counter;
 
 UBYTE camera_wobble_frames(void *THIS, UBYTE start, UWORD *stack_num) OLDCALL BANKED
 {
@@ -215,4 +225,52 @@ void get_is_facing_cell(SCRIPT_CTX *THIS) OLDCALL BANKED
         view_dirty = TRUE;
         is_facing_cell = 1;
     };
+}
+
+// index based on zone, x, and y
+const int16_t chest_lut[] = {
+    0x9CB, 0xB48, 0xC08, 0xC83, 0xDC4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                 // lab
+    0x883, 0x96C, 0xA94, 0xADD, 0xB2A, 0xB2C, 0xC89, 0xCEE, 0xD53, 0, 0, 0, 0, 0, 0, 0, // forest
+    0x90B, 0x913, 0x97D, 0xC0B, 0xDB5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                 // caves
+    0x95E, 0xA1D, 0xA21, 0xA43, 0xA4E, 0xC5F, 0xD21, 0, 0, 0, 0, 0, 0, 0, 0, 0          // warehouse
+};
+
+/* idx  item
+    -1  MedGel
+    -2  Flare
+    -3  Em Port
+    -4  Cloak
+    -5  Lockpick
+
+*/
+const int16_t treasure_lut[] = {
+    120, -1, -2, -5, 150, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // lab
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,        // forest
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,        // caves
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0         // warehouse
+};
+
+int16_t chest_contents;
+int16_t new_flags, flags;
+
+void get_treasure_chest(SCRIPT_CTX *THIS) OLDCALL BANKED
+{
+    chest_contents = 0; // empty
+    uint8_t index = *(int16_t *)VM_REF_TO_PTR(FN_ARG0) * 16u;
+
+    for (;; index++)
+    {
+        if (chest_lut[index] == chest_index)
+        {
+            counter = 1 << (index % 16u);
+            if (!(flags & counter))
+            {
+                new_flags = flags | counter;
+                chest_contents = treasure_lut[index];
+            }
+            return;
+        }
+        if (index >= sizeof(chest_lut))
+            return;
+    }
 }
