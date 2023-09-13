@@ -13,6 +13,7 @@ extern uint8_t view_dirty;
 extern uint8_t minimap;
 extern uint8_t is_minimap_selected;
 extern uint8_t in_combat;
+extern uint8_t is_dark;
 
 extern uint8_t crawler_sprite_near_visible;
 extern uint8_t crawler_sprite_far_visible;

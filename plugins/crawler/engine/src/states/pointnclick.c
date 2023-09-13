@@ -51,7 +51,7 @@ uint8_t is_minimap_selected;
 static uint8_t old_minimap;
 uint8_t view_dirty;
 
-uint8_t in_combat;
+uint8_t in_combat, is_dark;
 uint8_t is_chest_ahead;
 uint8_t facing_x, facing_y;
 int16_t chest_index;
@@ -242,8 +242,8 @@ void get_sprite_visibility() BANKED
     actor_t *hit_actor;
 
     // Get chest actor once
-    if (chest_actor == NULL)
-        chest_actor = actor_at_tile(3u, 32u, FALSE);
+    // if (chest_actor == NULL)
+    //     chest_actor = actor_at_tile(3u, 32u, FALSE);
 
     is_chest_ahead = FALSE;
 
@@ -315,6 +315,8 @@ void pointnclick_init() BANKED
     wall = get_bkg_tile(1u, 32u);
     door = get_bkg_tile(2u, 32u);
     chest = get_bkg_tile(3u, 32u);
+
+    chest_actor = actor_at_tile(3u, 32u, FALSE);
 
     // Set second sprite palette to default
     DMG_palette[2] = DMG_PALETTE(DMG_BLACK, DMG_WHITE, DMG_LITE_GRAY, DMG_BLACK);
@@ -480,7 +482,16 @@ void pointnclick_update() BANKED
         old_minimap = minimap;
 
         // Copy offscreen to screen
-        set_bkg_submap(1, 2u, 18u, 10u, vram_ptr, 32u); // 32u for VRAM width rather than image width
+        if (is_dark)
+        {
+            fill_bkg_rect(1u, 2u, 18u, 10u, open);
+            minimap = FALSE;
+        }
+        else
+        {
+            set_bkg_submap(1u, 2u, 18u, 10u, vram_ptr, 32u); // 32u for VRAM width rather than image width
+        }
+
         // Fix minimap corner after buffer copy
         if (minimap)
             set_bkg_chunk(19u, 11u, 1u, 1u, 26u, 12u);

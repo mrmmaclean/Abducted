@@ -12,9 +12,9 @@ export const fields = [
 
 export const compile = (input, helpers) => {
 	const { _stackPush, _callNative, _stackPop, getVariableAlias } = helpers;
-	const zone = getVariableAlias(input.zone);
+	const index = input.zone * 16;
 
-	_stackPush(zone);
+	_stackPush(index);
 	_callNative("get_treasure_chest");
 	_stackPop(1);
 };

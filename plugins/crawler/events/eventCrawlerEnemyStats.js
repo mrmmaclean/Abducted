@@ -4,8 +4,8 @@ export const groups = ["Crawler Events"];
 
 export const fields = [
 	{
-		key: "enemy",
-		label: "Enemy variable",
+		key: "zone",
+		label: "Zone variable",
 		type: "variable",
 	},
 ];
@@ -13,9 +13,9 @@ export const fields = [
 export const compile = (input, helpers) => {
 	const { _stackPush, _callNative, _stackPop, getVariableAlias } = helpers;
 
-	const enemy = getVariableAlias(input.enemy);
+	const zone = getVariableAlias(input.zone);
 
-	_stackPush(enemy);
+	_stackPush(zone);
 	_callNative("get_enemy_stats");
 	_stackPop(1);
 };
