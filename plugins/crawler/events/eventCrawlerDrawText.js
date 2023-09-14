@@ -27,7 +27,7 @@ export const compile = (input, helpers) => {
 
 	appendRaw(`; Text
 VM_LOAD_TEXT 1
-.dw WAL_${val}
+.dw VAR_${val}
 .asciz 003\\000\\022%d
 `);
 
