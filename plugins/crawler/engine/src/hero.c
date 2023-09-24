@@ -175,8 +175,9 @@ void get_enemy_stats(SCRIPT_CTX *THIS) OLDCALL BANKED
     engine_enemy_xp = enemy_table[enemy + 6];
     engine_enemy_junk = (enemy_table[enemy + 7] * ((rand() & 0x3F) + 0xC0)) >> 8; //(GP * ((RAND & 0x3F) + 0xC0)) >> 8
 
-    // x2 gold
+    // x2 gold/xp
     engine_enemy_junk *= 2;
+    engine_enemy_xp *= 2;
 }
 
 void flash_sprite(SCRIPT_CTX *THIS) OLDCALL BANKED
